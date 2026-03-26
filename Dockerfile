@@ -1,11 +1,20 @@
+# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /source
+
+COPY . .
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-COPY . ./
-RUN dotnet publish -c Release -o out
+COPY --from=build /app/publish .
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
-WORKDIR /app
-COPY --from=build /app/out .
+ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
+ENV ASPNETCORE_ENVIRONMENT=Production
 
-ENTRYPOINT ["dotnet", "sistema_regulacao.dll"]
+EXPOSE ${PORT:-8080}
+
+ENTRYPOINT ["dotnet", "SistemaRegulacao.dll"]
