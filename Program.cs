@@ -9,7 +9,7 @@ builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-// Não precisa repetir a configuração de porta aqui
+//não precisa repetir a configuração de porta aqui
 
 app.MapControllers();
 app.MapDefaultControllerRoute();
@@ -23,6 +23,6 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseAuthorization();   // adicione se não tiver
+app.UseAuthorization();
 
 app.Run();
