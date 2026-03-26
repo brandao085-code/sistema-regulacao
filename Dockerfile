@@ -3,8 +3,8 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /source
 
 COPY . .
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet restore "sistema_regulacao.csproj"
+RUN dotnet publish "sistema_regulacao.csproj" -c Release -o /app/publish --no-restore
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
@@ -17,4 +17,4 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE ${PORT:-8080}
 
-ENTRYPOINT ["dotnet", "SistemaRegulacao.dll"]
+ENTRYPOINT ["dotnet", "sistema_regulacao.dll"]
