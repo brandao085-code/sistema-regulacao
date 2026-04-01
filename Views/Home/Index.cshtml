@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -44,6 +44,26 @@
 <body class="bg-gray-50 text-gray-800">
 
     <!-- HEADER -->
+     <script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKxUw84mcvUsKgXv_ZEWDB05-yRj02jj8",
+  authDomain: "sistemaregulacao-a3a56.firebaseapp.com",
+  projectId: "sistemaregulacao-a3a56",
+  storageBucket: "sistemaregulacao-a3a56.firebasestorage.app",
+  messagingSenderId: "210798796151",
+  appId: "1:210798796151:web:34532f0aef4805d2bbd572",
+  measurementId: "G-HTHYF2SS95"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+</script>
+
     <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6">
             <div class="flex items-center justify-between h-16">
@@ -85,6 +105,14 @@
     </header>
 
     <div class="max-w-7xl mx-auto px-6 py-8">
+        <div class="mb-6">
+    <input
+        type="text"
+        placeholder="Pesquisar nome, CPF ou especialidade..."
+        class="w-full p-3 border border-gray-300 rounded-xl"
+        oninput="pesquisarFila(this.value)"
+    >
+</div>
         <div id="content" class="min-h-[calc(100vh-200px)]"></div>
     </div>
 
@@ -114,10 +142,71 @@
     <script>
         // ====================== CONFIGURAÇÃO ======================
         let currentUnit = "UBS II";
+        let buscaFila = "";
         let patients = [];
         let currentPatientId = null;
         let currentTabIndex = 0;
         let buscaAgendados = "";
+        
+        // FUNÇÃO 1 - salvar paciente
+        async function salvarPaciente(paciente) {
+
+        try {
+        await addDoc(collection(db, "patients"), paciente);
+        console.log("Paciente salvo!");
+        } catch (e) {
+        console.error("Erro:", e);
+        }
+
+        }
+
+
+        // FUNÇÃO 2 - carregar pacientes
+        async function carregarPacientes() {
+
+        const querySnapshot = await getDocs(collection(db, "patients"));
+
+        patients = [];
+
+        querySnapshot.forEach((doc) => {
+
+        patients.push({
+            id: doc.id,
+            ...doc.data()
+        });
+
+    });
+
+    renderFila();
+
+}
+
+
+// FUNÇÃO 3 - escutar atualizações em tempo real
+function escutarPacientes() {
+
+    onSnapshot(collection(db, "patients"), (snapshot) => {
+
+        patients = [];
+
+        snapshot.forEach((doc) => {
+
+            patients.push({
+                id: doc.id,
+                ...doc.data()
+            });
+
+        });
+
+        renderFila();
+
+    });
+
+}
+
+
+// iniciar escuta quando o site abrir
+escutarPacientes();
 
         const tabs = [
             { name: "Cadastro", icon: "📋" },
@@ -126,16 +215,10 @@
             { name: "Fila de Espera", icon: "🔄" },
             { name: "Agendados", icon: "📅" }
         ];
-
-        function getStorageKey() { return `regulacao_patients_${currentUnit}`; }
-
-        function loadData() {
-            const saved = localStorage.getItem(getStorageKey());
-            patients = saved ? JSON.parse(saved) : [];
-        }
-
-        function saveData() {
-            localStorage.setItem(getStorageKey(), JSON.stringify(patients));
+         
+        function buscarFila(valor){
+        buscaFila = valor.toLowerCase();
+        renderFila();
         }
 
         function changeUnit(nova) {
@@ -197,6 +280,11 @@ return nome.includes(busca) || cpf.includes(busca);
             } catch (e) {}
             return "";
         }
+
+        function pesquisarFila(valor){
+    buscaFila = valor;
+    renderFila();
+}
 
         // ====================== MODAL ======================
         let currentModalPatient = null;
@@ -287,12 +375,12 @@ return nome.includes(busca) || cpf.includes(busca);
         // ====================== AÇÕES ======================
         function marcarComoErro() {
             const p = patients.find(x => x.id === currentModalPatient.id);
-            if (p) { p.status = "erro"; saveData(); closeModal(); renderCurrentTab(); }
+            if (p) { p.status = "erro"; closeModal(); renderCurrentTab(); }
         }
 
         function agendarPaciente() {
             const p = patients.find(x => x.id === currentModalPatient.id);
-            if (p) { p.status = "fila"; saveData(); closeModal(); renderCurrentTab(); }
+            if (p) { p.status = "fila"; closeModal(); renderCurrentTab(); }
         }
 
         function marcarAgendado(id) {
@@ -306,8 +394,6 @@ return nome.includes(busca) || cpf.includes(busca);
         p.status = "agendado";
         p.dataAgendamento = data;
         p.avisado = false;
-
-        saveData();
         renderCurrentTab();
     }
 
@@ -385,6 +471,11 @@ return nome.includes(busca) || cpf.includes(busca);
                                 </div>
                             </div>
                         </div>
+        
+                        <button type="button" onclick="salvarEManterPaciente()" 
+                        class="bg-blue-500 text-white px-4 py-2 rounded-xl">
+                        Salvar e manter paciente
+                        </button>
 
                         <button type="submit" class="w-full py-6 bg-blue-700 hover:bg-blue-800 text-white text-xl font-semibold rounded-3xl transition">💾 SALVAR CADASTRO</button>
                     </form>
@@ -392,7 +483,37 @@ return nome.includes(busca) || cpf.includes(busca);
             `;
             document.getElementById("content").innerHTML = html;
         }
+         
+        function salvarEManterPaciente() {
 
+    const newPatient = {
+        id: generateId(),
+        data: document.getElementById("data").value,
+        unidade: document.getElementById("unidade").value,
+        especialidade: document.getElementById("especialidade").value,
+        telefone: document.getElementById("telefone").value,
+        nome: document.getElementById("nome").value,
+        dataNascimento: document.getElementById("dataNascimento").value,
+        cpf: document.getElementById("cpf").value,
+        cns: document.getElementById("cns").value,
+        nomeMae: document.getElementById("nomeMae").value,
+        endereco: document.getElementById("endereco").value,
+        sexo: document.getElementById("sexo").value,
+        prioridade: isPrioridade,
+        status: "pendente"
+    };
+
+    salvarPaciente(newPatient);
+
+    // limpa apenas dados da guia
+    document.getElementById("especialidade").value = "";
+    document.getElementById("historiaClinica").value = "";
+    document.getElementById("observacoes").value = "";
+    document.getElementById("medico").value = "";
+
+    alert("Guia salva!");
+}
+        
         function buscarEnderecoAutomatico(input) {
             const cep = input.value.replace(/\D/g, '');
             if (cep.length === 8) {
@@ -437,9 +558,7 @@ return nome.includes(busca) || cpf.includes(busca);
             };
 
             patients.unshift(newPatient);
-            saveData();
             alert("✅ Cadastro salvo com sucesso!");
-            changeTab(1);
         }
 
         // ====================== RENDERIZAÇÃO DAS ABAS ======================
@@ -484,7 +603,7 @@ function renderPendencias() {
                         <div><span class="text-gray-500">Unidade:</span> ${p.unidade || ''}</div>
                         <div><span class="text-gray-500">Especialidade:</span> ${p.especialidade || ''}</div>
                         <div><span class="text-gray-500">Telefone:</span> ${p.telefone || ''}</div>
-                        <div><span class="text-gray-500">Data Nasc:</span> \( {p.dataNascimento || ''} ( \){p.idade || calcularIdade(p.dataNascimento) || ''})</div>
+                        <div><span class="text-gray-500">Data Nasc:</span> ${p.dataNascimento || ''} ${p.idade || calcularIdade(p.dataNascimento) || ''} </div>
                         <div><span class="text-gray-500">CPF:</span> ${formatCPF(p.cpf || '')}</div>
                         <div><span class="text-gray-500">CNS:</span> ${formatCNS(p.cns || '')}</div>
                         <div><span class="text-gray-500">Nome da Mãe:</span> ${p.nomeMae || ''}</div>
@@ -531,11 +650,18 @@ function renderPendencias() {
 
 // ====================== AÇÕES DOS BOTÕES ======================
 function marcarComoErro(id) {
-    const p = patients.find(x => x.id === id);
-    if (p) {
-        p.status = "erro";
-        saveData();
-        renderCurrentTab();
+
+const erro = prompt("Digite qual é o erro do cadastro:");
+
+if(!erro) return;
+
+const p = patients.find(x => x.id === id);
+
+if(p){
+p.status = "erro";
+p.motivoErro = erro;
+saveData();
+renderCurrentTab();
     }
 }
 
@@ -545,7 +671,6 @@ function marcarAvisado(id){
 
     if(p){
         p.avisado = true;
-        saveData();
         renderCurrentTab();
     }
 
@@ -555,7 +680,7 @@ function agendarPaciente(id) {
     const p = patients.find(x => x.id === id);
     if (p) {
         p.status = "fila";
-        saveData();
+        p.prioridade = p.prioridade || false;
         renderCurrentTab();
     }
 }
@@ -567,8 +692,9 @@ function closeModal() {
 
 // ====================== CADASTRO COM ERRO - FUNCIONAL ======================
 function renderErros() {
+   
     let erros = patients.filter(p => p.status === "erro");
-    
+
     let html = `
         <div class="mb-8">
             <h2 class="text-4xl font-bold text-red-700">Cadastro com Erro (${erros.length})</h2>
@@ -593,8 +719,10 @@ function renderErros() {
                             <p class="text-2xl font-semibold text-red-700">${p.nome || 'Sem nome'}</p>
                             <p class="text-gray-600">${formatCPF(p.cpf || '')}</p>
                             <p class="text-sm text-gray-500 mt-1">${p.unidade || ''} • ${p.especialidade || ''}</p>
+                            <p class="text-red-500 mt-2">Erro: ${p.motivoErro || ""}</p>
                         </div>
                     </div>
+                  
 
                     <div class="mt-6 pt-6 border-t grid grid-cols-2 gap-6 text-sm">
                         <div><span class="text-gray-500">Telefone:</span> ${p.telefone || ''}</div>
@@ -627,7 +755,6 @@ function corrigirEEnviarFila(id) {
     const p = patients.find(x => x.id === id);
     if (p) {
         p.status = "fila";
-        saveData();
         renderCurrentTab();
         alert("✅ Enviado para Fila de Espera");
     }
@@ -639,7 +766,6 @@ function enviarParaFila(id){
 
     if(p){
         p.status = "fila";
-        saveData();
         renderCurrentTab();
     }
 
@@ -661,14 +787,41 @@ document.getElementById("modal").classList.remove("hidden");
 function descartarPaciente(id) {
     if (confirm("Tem certeza que deseja descartar este cadastro permanentemente?")) {
         patients = patients.filter(x => x.id !== id);
-        saveData();
         renderCurrentTab();
         alert("🗑️ Cadastro descartado");
     }
 }
         function renderFila() {
+           
     let fila = patients.filter(p => p.status === "fila");
+     // AQUI entra a busca
+    const busca = document.getElementById("searchFila")?.value.toLowerCase() || "";
 
+    fila = fila.filter(p => {
+
+    if(!buscaFila) return true;
+
+    const busca = buscaFila.toLowerCase();
+
+    const nome = (p.nome || "").toLowerCase();
+    const cpf = (p.cpf || "");
+    const esp = (p.especialidade || "").toLowerCase();
+
+    return nome.includes(busca) ||
+           cpf.includes(busca) ||
+           esp.includes(busca);
+
+});
+
+    fila.sort((a, b) => {
+
+    if (a.prioridade && !b.prioridade) return -1;
+    if (!a.prioridade && b.prioridade) return 1;
+
+    return new Date(a.data) - new Date(b.data);
+    
+
+});
     let html = `
         <div class="mb-8">
             <h2 class="text-4xl font-bold text-violet-700">
@@ -676,7 +829,8 @@ function descartarPaciente(id) {
             </h2>
         </div>
     `;
-
+    
+     
     if (fila.length === 0) {
         html += `
             <div class="bg-white p-12 rounded-3xl text-center text-gray-400 text-xl">
@@ -687,8 +841,9 @@ function descartarPaciente(id) {
         html += `<div class="grid grid-cols-1 gap-4">`;
 
         fila.forEach(p => {
+            const priorityClass = p.prioridade ? "border-red-500 bg-red-50" : "border-violet-200";
             html += `
-                <div class="patient-card bg-white border border-violet-200 rounded-3xl p-6 flex justify-between items-center">
+                <div class="patient-card ${priorityClass} border rounded-3xl p-6 flex justify-between items-center">
 
                     <div onclick="openModalFromList('${p.id}')" 
                          class="flex items-center gap-x-6 cursor-pointer">
@@ -697,8 +852,17 @@ function descartarPaciente(id) {
 
                         <div>
                             <p class="text-xl font-semibold">${p.nome}</p>
+                            ${p.prioridade ? '<span class="text-red-600 font-bold text-sm">🚨 PRIORIDADE</span>' : ''}
                             <p class="text-gray-500">${formatCPF(p.cpf)}</p>
                             <p class="text-sm text-gray-400">${p.especialidade || ""}</p>
+                            <p class="text-sm text-gray-400">${formatCNS(p.cns)}</p>
+                            <p class="text-sm text-gray-400">${p.telefone}</p>
+                            <p class="text-sm text-gray-400">${p.endereco}</p>
+                            <p class="text-sm text-gray-400">${p.unidade}</p>
+                            <p class="text-sm text-gray-400">${p.medico || "—"}</p>
+                            <p class="text-sm text-gray-400">${p.historiaClinica || "—"}</p>
+                            <p class="text-sm text-gray-400">>${p.observacoes || "—"}</p> 
+                            <p class="text-sm text-gray-500">cadastro: ${p.data}</p>                       
                         </div>
 
                     </div>
@@ -900,7 +1064,6 @@ Responda com *OK* para confirmar o recebimento.`;
 
     // marcar como avisado
     p.avisado = true;
-    saveData();
     renderCurrentTab();
 }
 
