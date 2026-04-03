@@ -47,7 +47,7 @@
      <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDKxUw84mcvUsKgXv_ZEWDB05-yRj02jj8",
@@ -181,8 +181,6 @@ const db = getFirestore(app);
 
 }
 
-
-// FUNÇÃO 3 - escutar atualizações em tempo real
 function escutarPacientes() {
 
     onSnapshot(collection(db, "patients"), (snapshot) => {
@@ -204,8 +202,6 @@ function escutarPacientes() {
 
 }
 
-
-// iniciar escuta quando o site abrir
 escutarPacientes();
 
         const tabs = [
@@ -310,6 +306,7 @@ return nome.includes(busca) || cpf.includes(busca);
                     <div><p class="text-gray-500 mb-1">Nome da Mãe</p><p class="font-medium">${patient.nomeMae}</p></div>
                     <div class="col-span-2"><p class="text-gray-500 mb-1">Endereço</p><p class="font-medium">${patient.endereco}</p></div>
                     <div><p class="text-gray-500 mb-1">Sexo</p><p class="font-medium">${patient.sexo}</p></div>
+                    <div><p class="text-gray-500 mb-1">Cor / Raça</p><p class="font-medium">${patient.corRaca || "—"}</p></div>                   
                     <div><p class="text-gray-500 mb-1">Peso / Altura</p><p class="font-medium">${patient.peso} kg • ${patient.altura} cm</p></div>
                 </div>
                 <div class="mt-10 border-t pt-8">
@@ -373,15 +370,6 @@ return nome.includes(busca) || cpf.includes(busca);
         }
 
         // ====================== AÇÕES ======================
-        function marcarComoErro() {
-            const p = patients.find(x => x.id === currentModalPatient.id);
-            if (p) { p.status = "erro"; closeModal(); renderCurrentTab(); }
-        }
-
-        function agendarPaciente() {
-            const p = patients.find(x => x.id === currentModalPatient.id);
-            if (p) { p.status = "fila"; closeModal(); renderCurrentTab(); }
-        }
 
         function marcarAgendado(id) {
         const data = prompt("Digite a data do agendamento (AAAA-MM-DD):");
@@ -418,29 +406,42 @@ return nome.includes(busca) || cpf.includes(busca);
                         </div>
 
                         <div class="grid grid-cols-2 gap-8">
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Especialidade</label><input type="text" id="especialidade" placeholder="Digite a especialidade" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Telefone</label><input type="tel" id="telefone" placeholder="(11) 99999-9999" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Especialidade</label><input type="text" id="especialidade" placeholder="Digite a especialidade" oninput=" salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Telefone</label><input type="tel" id="telefone" placeholder="(11) 99999-9999" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-8">
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Nome completo</label><input type="text" id="nome" required placeholder="Nome do paciente" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Nome completo</label><input type="text" id="nome" required placeholder="Nome do paciente" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                             <div><label class="block text-sm font-medium text-gray-500 mb-2">Data de Nascimento</label><input type="date" id="dataNascimento" required onchange="updateIdade(this)" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-8">
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CPF</label><input type="text" id="cpf" maxlength="11" placeholder="00000000000" required class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CNS (Cartão SUS)</label><input type="text" id="cns" maxlength="15" placeholder="000000000000000" required class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CPF</label><input type="text" id="cpf" maxlength="11" placeholder="00000000000" oninput="salvarRascunho()" required class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CNS (Cartão SUS)</label><input type="text" id="cns" maxlength="15" placeholder="000000000000000" oninput="salvarRascunho()" required class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-8">
                             <div><label class="block text-sm font-medium text-gray-500 mb-2">Nome da mãe</label><input type="text" id="nomeMae" required class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CEP</label><input type="text" id="cep" maxlength="8" placeholder="00000000" oninput="buscarEnderecoAutomatico(this)" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">CEP</label><input type="text" id="cep" maxlength="8" placeholder="00000000" oninput="salvarRascunho()" oninput="buscarEnderecoAutomatico(this)" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-2">Endereço completo (editável)</label>
-                            <input type="text" id="endereco" placeholder="Rua, número, bairro, cidade..." class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500">
+                            <input type="text" id="endereco" placeholder="Rua, número, bairro, cidade..." oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500">
                         </div>
+                          
+                        <div>
+<label class="block text-sm font-medium text-gray-500 mb-2">Cor / Raça</label>
+<select id="corRaca" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500">
+<option value="">Selecione</option>
+<option value="Branca">Branca</option>
+<option value="Preta">Preta</option>
+<option value="Parda">Parda</option>
+<option value="Amarela">Amarela</option>
+<option value="Indígena">Indígena</option>
+<option value="Não informado">Não informado</option>
+</select>
+</div>   
 
                         <div class="grid grid-cols-3 gap-8">
                             <div><label class="block text-sm font-medium text-gray-500 mb-2">Sexo</label>
@@ -450,24 +451,24 @@ return nome.includes(busca) || cpf.includes(busca);
                                     <option value="Outro">Outro</option>
                                 </select>
                             </div>
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Peso (kg)</label><input type="number" id="peso" step="0.1" placeholder="75.5" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Altura (cm)</label><input type="number" id="altura" placeholder="170" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Peso (kg)</label><input type="number" id="peso" step="0.1" placeholder="75.5" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-500 mb-2">Altura (cm)</label><input type="number" id="altura" placeholder="170" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500"></div>
                         </div>
 
                         <div class="pt-8 border-t">
                             <h3 class="text-2xl font-semibold text-blue-700 mb-6">Informações Médicas</h3>
                             <div class="mb-6">
                                 <label class="block text-sm font-medium text-gray-500 mb-2">Nome do Médico Responsável</label>
-                                <input type="text" id="medico" placeholder="Dr. João Silva" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500">
+                                <input type="text" id="medico" placeholder="Dr. João Silva" oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500">
                             </div>
                             <div class="grid grid-cols-2 gap-8">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-500 mb-2">História Clínica</label>
-                                    <textarea id="historiaClinica" rows="4" placeholder="Descreva os sintomas e histórico..." class="w-full px-5 py-4 border border-gray-200 rounded-3xl resize-none"></textarea>
+                                    <textarea id="historiaClinica" rows="4" placeholder="Descreva os sintomas e histórico..." oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-3xl resize-none"></textarea>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-500 mb-2">Observações</label>
-                                    <textarea id="observacoes" rows="4" placeholder="Observações adicionais..." class="w-full px-5 py-4 border border-gray-200 rounded-3xl resize-none"></textarea>
+                                    <textarea id="observacoes" rows="4" placeholder="Observações adicionais..." oninput="salvarRascunho()" class="w-full px-5 py-4 border border-gray-200 rounded-3xl resize-none"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -482,6 +483,7 @@ return nome.includes(busca) || cpf.includes(busca);
                 </div>
             `;
             document.getElementById("content").innerHTML = html;
+            carregarRascunho();
         }
          
         function salvarEManterPaciente() {
@@ -499,6 +501,7 @@ return nome.includes(busca) || cpf.includes(busca);
         nomeMae: document.getElementById("nomeMae").value,
         endereco: document.getElementById("endereco").value,
         sexo: document.getElementById("sexo").value,
+        corRaca: document.getElementById("corRaca").value,
         prioridade: isPrioridade,
         status: "pendente"
     };
@@ -528,6 +531,36 @@ return nome.includes(busca) || cpf.includes(busca);
             btn.classList.toggle("text-white");
             btn.classList.toggle("border-red-600");
         }
+
+        function salvarRascunho() {
+    const dados = {
+        nome: document.getElementById("nome")?.value || "",
+        cpf: document.getElementById("cpf")?.value || "",
+        telefone: document.getElementById("telefone")?.value || "",
+        dataNascimento: document.getElementById("dataNascimento")?.value || "",
+        cns: document.getElementById("cns")?.value || "",
+        unidade: document.getElementById("unidade")?.value || "",
+        especialidade: document.getElementById("especialidade")?.value || "",
+        historiaClinica: document.getElementById("historiaClinica")?.value || "",
+        observacoes: document.getElementById("observacoes")?.value || ""
+    }
+
+    localStorage.setItem("rascunhoCadastro", JSON.stringify(dados))
+}
+      
+        function carregarRascunho() {
+
+    const rascunho = localStorage.getItem("rascunhoCadastro")
+
+    if (!rascunho) return
+
+    const dados = JSON.parse(rascunho)
+
+    Object.keys(dados).forEach(campo => {
+        const el = document.getElementById(campo)
+        if (el) el.value = dados[campo]
+    })
+}
 
         function salvarCadastro(e) {
             e.preventDefault();
@@ -559,10 +592,11 @@ return nome.includes(busca) || cpf.includes(busca);
 
             patients.unshift(newPatient);
             alert("✅ Cadastro salvo com sucesso!");
+
+            localStorage.removeItem("rascunhoCadastro")
+
         }
 
-        // ====================== RENDERIZAÇÃO DAS ABAS ======================
-        // ====================== PENDÊNCIAS - MOSTRA TUDO JÁ ABERTO ======================
 function renderPendencias() {
     let pendentes = patients.filter(p => p.status === "pendente");
     
@@ -609,6 +643,7 @@ function renderPendencias() {
                         <div><span class="text-gray-500">Nome da Mãe:</span> ${p.nomeMae || ''}</div>
                         <div class="col-span-2"><span class="text-gray-500">Endereço:</span> ${p.endereco || ''}</div>
                         <div><span class="text-gray-500">Sexo:</span> ${p.sexo || ''}</div>
+                        <div><span class="text-gray-500">Cor / Raça:</span> ${p.corRaca || ''}</div>
                         <div><span class="text-gray-500">Peso / Altura:</span> ${p.peso || ''} kg • ${p.altura || ''} cm</div>
                     </div>
 
@@ -660,7 +695,6 @@ const p = patients.find(x => x.id === id);
 if(p){
 p.status = "erro";
 p.motivoErro = erro;
-saveData();
 renderCurrentTab();
     }
 }
@@ -685,80 +719,155 @@ function agendarPaciente(id) {
     }
 }
 
-function closeModal() {
-    document.getElementById("modal").classList.add("hidden");
-    currentModalPatient = null;
+
+function renderErros() {
+
+let erros = patients.filter(p => p.status === "erro");
+
+let html = `
+<div class="mb-8">
+<h2 class="text-4xl font-bold text-red-700">
+Cadastro com Erro (${erros.length})
+</h2>
+<p class="text-gray-500">Cadastros que precisam ser corrigidos</p>
+</div>
+`;
+
+if(erros.length === 0){
+html += `<div class="bg-white p-12 rounded-3xl text-center text-gray-400 text-xl">
+Nenhum cadastro com erro.
+</div>`;
+}
+else{
+
+html += `<div class="space-y-6">`;
+
+erros.forEach(p=>{
+
+html += `
+
+<div class="bg-white border border-red-300 rounded-3xl p-8">
+
+<div class="flex justify-between items-center mb-6">
+
+<h3 class="text-2xl font-semibold text-red-700">
+${p.nome || "Sem nome"}
+</h3>
+
+<button onclick="togglePrioridadeErro('${p.id}', this)"
+class="px-5 py-2 rounded-2xl border
+${p.prioridade ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-600"}">
+
+🚨 Prioridade
+
+</button>
+
+</div>
+
+
+<div class="grid grid-cols-2 gap-6 text-sm">
+
+<div>
+<label class="text-gray-500">Nome</label>
+<input value="${p.nome || ""}" 
+oninput="editarCampo('${p.id}','nome',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">CPF</label>
+<input value="${p.cpf || ""}"
+oninput="editarCampo('${p.id}','cpf',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">Telefone</label>
+<input value="${p.telefone || ""}"
+oninput="editarCampo('${p.id}','telefone',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">Data de Nascimento</label>
+<input value="${p.dataNascimento || ""}"
+oninput="editarCampo('${p.id}','dataNascimento',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">CNS</label>
+<input value="${p.cns || ""}"
+oninput="editarCampo('${p.id}','cns',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">Especialidade</label>
+<input value="${p.especialidade || ""}"
+oninput="editarCampo('${p.id}','especialidade',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div>
+<label class="text-gray-500">Cor / Raça</label>
+<input value="${p.corRaca || ""}"
+oninput="editarCampo('${p.id}','corRaca',this.value)"
+class="border p-3 rounded-xl w-full">
+</div>
+
+<div class="col-span-2">
+<label class="text-gray-500">História Clínica</label>
+<textarea
+oninput="editarCampo('${p.id}','historiaClinica',this.value)"
+class="border p-3 rounded-xl w-full"
+rows="3">${p.historiaClinica || ""}</textarea>
+</div>
+
+<div class="col-span-2">
+<label class="text-gray-500">Observações</label>
+<textarea
+oninput="editarCampo('${p.id}','observacoes',this.value)"
+class="border p-3 rounded-xl w-full"
+rows="3">${p.observacoes || ""}</textarea>
+</div>
+
+</div>
+
+
+<div class="flex gap-4 mt-8">
+
+<button onclick="corrigirEEnviarFila('${p.id}')"
+class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl">
+
+🔄 Enviar para Fila
+
+</button>
+
+<button onclick="descartarPaciente('${p.id}')"
+class="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl">
+
+🗑️ Descartar
+
+</button>
+
+</div>
+
+</div>
+
+`;
+
+});
+
+html += `</div>`;
+
 }
 
-// ====================== CADASTRO COM ERRO - FUNCIONAL ======================
-function renderErros() {
-   
-    let erros = patients.filter(p => p.status === "erro");
+document.getElementById("content").innerHTML = html;
 
-    let html = `
-        <div class="mb-8">
-            <h2 class="text-4xl font-bold text-red-700">Cadastro com Erro (${erros.length})</h2>
-            <p class="text-gray-500">Cadastros que precisam ser corrigidos</p>
-        </div>
-    `;
-
-    if (erros.length === 0) {
-        html += `<div class="bg-white p-12 rounded-3xl text-center text-gray-400 text-xl">Nenhum cadastro com erro no momento.</div>`;
-    } else {
-        html += `<div class="grid grid-cols-1 gap-6">`;
-        
-        erros.forEach(p => {
-            html += `
-                <div onclick="openModalFromList('${p.id}')" 
-                    class="patient-card cursor-pointer bg-white border border-red-300 rounded-3xl p-8 hover:border-red-500 transition">
-                    <div class="flex items-center gap-x-6">
-                        <div class="w-16 h-16 bg-red-100 text-red-700 rounded-3xl flex items-center justify-center text-4xl font-bold">
-                            ${p.nome ? p.nome[0].toUpperCase() : 'X'}
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-2xl font-semibold text-red-700">${p.nome || 'Sem nome'}</p>
-                            <p class="text-gray-600">${formatCPF(p.cpf || '')}</p>
-                            <p class="text-sm text-gray-500 mt-1">${p.unidade || ''} • ${p.especialidade || ''}</p>
-                            <p class="text-red-500 mt-2">Erro: ${p.motivoErro || ""}</p>
-                        </div>
-                    </div>
-                  
-
-                    <div class="mt-6 pt-6 border-t grid grid-cols-2 gap-6 text-sm">
-                        <div><span class="text-gray-500">Telefone:</span> ${p.telefone || ''}</div>
-                        <div><span class="text-gray-500">Data Nasc:</span> ${p.dataNascimento || ''}</div>
-                    </div>
-
-                    <!-- Botões de ação -->
-                    <div class="flex gap-4 mt-8">
-                        <button onclick="event.stopImmediatePropagation(); corrigirEEnviarFila('${p.id}')" 
-                            class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-2xl transition">
-                            🔄 Corrigir e Enviar para Fila
-                        </button>
-                        <button onclick="event.stopImmediatePropagation(); descartarPaciente('${p.id}')" 
-                            class="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-2xl transition">
-                            🗑️ Descartar Cadastro
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += `</div>`;
-    }
-    
-    document.getElementById("content").innerHTML = html;
 }
 
 // ====================== AÇÕES PARA CADASTRO COM ERRO ======================
-function corrigirEEnviarFila(id) {
-    const p = patients.find(x => x.id === id);
-    if (p) {
-        p.status = "fila";
-        renderCurrentTab();
-        alert("✅ Enviado para Fila de Espera");
-    }
-}
 
 function enviarParaFila(id){
 
@@ -784,6 +893,46 @@ document.getElementById("especialidade").value = p.especialidade || "";
 document.getElementById("modal").classList.remove("hidden");
 }
 
+//cadastro erro
+function togglePrioridadeErro(id,btn){
+
+const p = patients.find(x=>x.id===id);
+
+if(!p) return;
+
+p.prioridade = !p.prioridade;
+
+btn.classList.toggle("bg-red-600");
+btn.classList.toggle("text-white");
+
+}
+
+function editarCampo(id, campo, valor){
+
+const p = patients.find(x=>x.id===id);
+
+if(p){
+p[campo] = valor;
+}
+
+}
+
+function corrigirEEnviarFila(id){
+
+const p = patients.find(x=>x.id===id);
+
+if(p){
+
+p.status = "fila";
+
+alert("enviado para fila!");
+
+renderCurrentTab();
+
+}
+
+}
+
 function descartarPaciente(id) {
     if (confirm("Tem certeza que deseja descartar este cadastro permanentemente?")) {
         patients = patients.filter(x => x.id !== id);
@@ -794,8 +943,6 @@ function descartarPaciente(id) {
         function renderFila() {
            
     let fila = patients.filter(p => p.status === "fila");
-     // AQUI entra a busca
-    const busca = document.getElementById("searchFila")?.value.toLowerCase() || "";
 
     fila = fila.filter(p => {
 
@@ -857,6 +1004,7 @@ function descartarPaciente(id) {
                             <p class="text-sm text-gray-400">${p.especialidade || ""}</p>
                             <p class="text-sm text-gray-400">${formatCNS(p.cns)}</p>
                             <p class="text-sm text-gray-400">${p.telefone}</p>
+                            <p class="text-sm text-gray-400">Cor/Raça: ${p.corRaca || "—"}</p>
                             <p class="text-sm text-gray-400">${p.endereco}</p>
                             <p class="text-sm text-gray-400">${p.unidade}</p>
                             <p class="text-sm text-gray-400">${p.medico || "—"}</p>
