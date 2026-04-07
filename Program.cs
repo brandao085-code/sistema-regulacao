@@ -1,28 +1,26 @@
+using MySql.Data.MySqlClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuração OBRIGATÓRIA para Railway
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// pega connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Add services to the container.
-builder.Services.AddControllersWithViews();
+// testa conexão
+using (var connection = new MySqlConnection(connectionString))
+{
+    try
+    {
+        connection.Open();
+        Console.WriteLine("Conectado ao banco 🚀");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Erro ao conectar: " + ex.Message);
+    }
+}
 
 var app = builder.Build();
 
-//não precisa repetir a configuração de porta aqui
-
-app.MapControllers();
-app.MapDefaultControllerRoute();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseRouting();
-app.UseAuthorization();
+app.MapGet("/", () => "API rodando");
 
 app.Run();
